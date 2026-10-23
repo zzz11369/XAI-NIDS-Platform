@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>云端筑盾 · XAI-NIDS Platform</title>
+<script src="/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f4f6fb; color: #2b3350; }
+
+/* ===== 布局 ===== */
+.app { display: flex; min-height: 100vh; }
+
+/* ===== 侧栏 ===== */
+.sidebar {
+    width: 170px; background: #0f172a; color: #94a3b8;
+    padding: 16px 10px; flex-shrink: 0;
+    position: sticky; top: 0; height: 100vh;
+}
+.logo { padding: 0 8px 14px 8px; border-bottom: 1px solid rgba(255,255,255,.06); margin-bottom: 12px; }
+.logo h1 { font-size: 1.05rem; font-weight: 800; color: #fff; letter-spacing: 2px; }
+.logo p { font-size: .55rem; color: #64748b; letter-spacing: 2px; margin-top: 3px; }
+.nav-label { font-size: .58rem; color: #64748b; letter-spacing: 2px; padding: 10px 12px 4px; }
+.nav-item {
+    display: block; padding: 9px 14px; margin-bottom: 5px;
+    border-radius: 9px; cursor: pointer; font-size: .85rem;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+    transition: all .2s; color: #94a3b8;
+}
+.nav-item:hover { background: rgba(255,255,255,.07); color: #e2e8f0; }
+.nav-item.active {
+    background: linear-gradient(135deg, #4e7cf6, #6a5cff);
+    color: #fff; font-weight: 600; border-color: transparent;
+    box-shadow: 0 4px 14px rgba(78,124,246,.35);
+}
+
+/* ===== 主区 ===== */
+.main { flex: 1; padding: 16px 20px; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ===== 统计卡片 ===== */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+.stat-card {
+    background: #fff; border-radius: 12px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 2px 12px rgba(35,48,90,.06);
+    transition: transform .2s, box-shadow .2s;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(35,48,90,.1); }
+.stat-icon {
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+}
+.stat-title { color: #8a93ab; font-size: .72rem; }
+.stat-value { font-size: 1.2rem; font-weight: 700; color: #2b3350; margin: 2px 0; }
+.stat-delta { font-size: .68rem; }
+
+/* ===== 网格 ===== */
+.row { display: grid; gap: 18px; margin-bottom: 14px; }
+.row-21 { grid-template-columns: 1fr 2fr; }
+.row-11 { grid-template-columns: 1fr 1fr; }
+
+/* ===== 卡片 ===== */
+.card {
+    background: #fff; border-radius: 12px; padding: 12px 14px;
+    box-shadow: 0 2px 12px rgba(35,48,90,.06);
+}
+.card h3 {
+    font-size: .88rem; color: #2b3350; margin-bottom: 8px;
+    border-left: 3px solid #4e7cf6; padding-left: 8px;
+}
+.chart { width: 100%; height: 230px; }
+
+/* ===== 事件流 ===== */
+.event {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; margin-bottom: 5px; border-radius: 8px;
+    background: #fff; border: 1px solid #eef1f8; border-left: 4px solid #f46a6a;
+}
+.badge { font-size: .65rem; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
+.event-info { flex: 1; font-size: .75rem; color: #4a5270; }
+.event-conf { font-size: .73rem; color: #8a93ab; }
+
+/* ===== 按钮 ===== */
+.btn {
+    background: linear-gradient(90deg, #4e7cf6, #6a5cff); color: #fff;
+    border: none; border-radius: 7px; padding: 7px 16px;
+    font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .2s;
+}
+.btn:hover { box-shadow: 0 6px 18px rgba(78,124,246,.35); transform: translateY(-1px); }
+
+/* ===== Tab 切换 ===== */
+.tab-bar { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid #e8ecf5; padding-bottom: 0; }
+.tab-btn {
+    padding: 7px 16px; border: none; background: transparent; cursor: pointer;
+    font-size: .82rem; color: #8a93ab; border-radius: 7px 7px 0 0;
+    border-bottom: 2px solid transparent; transition: all .2s;
+}
+.tab-btn:hover { color: #4e7cf6; }
+.tab-btn.active { color: #4e7cf6; font-weight: 600; border-bottom-color: #4e7cf6; background: #f0f5ff; }
+
+/* ===== 表单 ===== */
+.form-row { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 140px; }
+.form-group label { font-size: .72rem; color: #8a93ab; display: block; margin-bottom: 3px; }
+.form-group input, .form-group select {
+    width: 100%; padding: 6px 10px; border: 1px solid #e8ecf5;
+    border-radius: 6px; font-size: .82rem; background: #fafbfe;
+}
+
+.result {
+    margin-top: 10px; padding: 9px 12px; border-radius: 8px;
+    background: #f0f9f5; border-left: 4px solid #34c38f;
+    font-size: .8rem; color: #2b3350;
+}
+.result.fail { background: #fff0f0; border-left-color: #f46a6a; }
+
+.ai-report { margin-top: 14px; }
+.ai-report .result { white-space: normal; line-height: 1.8; }
+.ai-badge { display:inline-block; font-size:.7rem; font-weight:700; color:#8b6fd8; background:#f0ecff; padding:3px 10px; border-radius:6px; margin-right:8px; vertical-align:middle; }
+
+.model-pill {
+    border:1px solid #d8deeb; background:#fff; color:#8a93ab;
+    padding:5px 14px; border-radius:16px; font-size:.8rem; cursor:pointer; margin-left:4px; transition:all .2s;
+}
+.model-pill.active { background:linear-gradient(135deg,#4e7cf6,#6a5cff); color:#fff; border-color:transparent; }
+.model-pill:not(.active):hover { border-color:#4e7cf6; color:#4e7cf6; }
+
+/* ===== AI 实验总结卡片 ===== */
+.ai-card {
+    margin-top: 12px;
+    background: linear-gradient(135deg, #faf9ff 0%, #f4f3ff 100%);
+    border: 1px solid #e9e5ff;
+    border-radius: 14px;
+    padding: 18px 20px;
+}
+.ai-head { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.ai-title { display:flex; align-items:center; gap:12px; }
+.ai-spark {
+    width:38px; height:38px; border-radius:10px; flex-shrink:0;
+    background: linear-gradient(135deg,#8b6fd8,#6a5cff); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:1.1rem;
+    box-shadow: 0 4px 12px rgba(139,111,216,.3);
+}
+.ai-title-main { font-size:1rem; font-weight:700; color:#2b3350; }
+.ai-title-sub { font-size:.74rem; color:#8a93ab; margin-top:2px; }
+
+h2.page-title { font-size: 1.08rem; margin-bottom: 12px; color: #2b3350; }
+</style>
+</head>
+<body>
+<div class="app">
+    <!-- 侧栏 -->
+    <aside class="sidebar">
+        <div class="logo">
+            <h1>云端筑盾</h1>
+            <p>XAI-NIDS PLATFORM</p>
+        </div>
+        <div style="padding:0 2px 12px;">
+            <div class="nav-label">DATASET</div>
+            <select id="ds-select" onchange="switchDataset(this.value)" style="width:100%;padding:6px 8px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:#1e293b;color:#e2e8f0;font-size:.78rem;">
+                <option value="kdd">NSL-KDD（5 类）</option>
+                <option value="unsw">UNSW-NB15（10 类）</option>
+            </select>
+            <div style="text-align:center;margin-top:6px;font-size:.62rem;color:#64748b" id="ds-current">当前：NSL-KDD</div>
+        </div>
+        <div class="nav-label">MODULES</div>
+        <div class="nav-item active" data-page="overview">流量采集</div>
+        <div class="nav-item" data-page="training">流量训练</div>
+        <div class="nav-item" data-page="explain">决策分析</div>
+        <div class="nav-item" data-page="attack">对抗攻击</div>
+        <div class="nav-item" data-page="defense">鲁棒防御</div>
+    </aside>
+
+    <!-- 主区 -->
+    <main class="main">
+        <!-- 页面1：流量采集 -->
+        <div class="page active" id="page-overview">
+            <h2 class="page-title">流量采集中心
+                <span style="float:right;font-size:.8rem;font-weight:400">
+                检测模型：
+                <button id="m-btn-base" class="model-pill active" onclick="switchModel('base')">基线模型</button>
+                <button id="m-btn-robust" class="model-pill" onclick="switchModel('robust')">加固模型</button>
+                </span>
+            </h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#e8efff;color:#4e7cf6">📦</div>
+                    <div><div class="stat-title">监测连接样本</div><div class="stat-value" id="s-packets">-</div><div class="stat-delta" style="color:#8a93ab">当前数据集·窗口实时判定</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#e8f9f1;color:#34c38f">🔗</div>
+                    <div><div class="stat-title">正常连接</div><div class="stat-value" id="s-sessions">-</div><div class="stat-delta" style="color:#8a93ab">判定为正常</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#fde8e8;color:#f46a6a">🚫</div>
+                    <div><div class="stat-title">阻断攻击连接</div><div class="stat-value" id="s-blocked">-</div><div class="stat-delta" style="color:#8a93ab">判定为攻击</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#fdf5e0;color:#f1b44c">🎯</div>
+                    <div><div class="stat-title">平均判定置信度</div><div class="stat-value" id="s-conf">-</div><div class="stat-delta" style="color:#f1b44c">● 模型 top-1 平均概率</div></div>
+                </div>
+            </div>
+            <div class="row row-21">
+                <div class="card"><h3>判定分布</h3><div id="pie" class="chart"></div></div>
+                <div class="card"><h3>实时吞吐</h3><div id="flow" class="chart"></div></div>
+            </div>
+            <div class="row row-21">
+                <div class="card"><h3 style="border-left-color:#f46a6a">威胁事件流</h3><div id="events"></div></div>
+                <div class="card"><h3>攻击构成</h3><div id="atkbar" class="chart"></div></div>
+            </div>
+        </div>
+
+        <!-- 页面2：流量训练 -->
+        <div class="page" id="page-training">
+            <h2 class="page-title">模型训练评估</h2>
+            <div class="stats">
+                <div class="stat-card"><div class="stat-icon" style="background:#e8efff;color:#4e7cf6">📊</div><div><div class="stat-title">恶意检测准确率</div><div class="stat-value" id="t-acc">-</div></div></div>
+                <div class="stat-card"><div class="stat-icon" style="background:#e8f9f1;color:#34c38f">📈</div><div><div class="stat-title">恶意检测 F1</div><div class="stat-value" id="t-f1">-</div></div></div>
+                <div class="stat-card"><div class="stat-icon" style="background:#fff5e6;color:#f1b44c">🎯</div><div><div class="stat-title">检测 AUC</div><div class="stat-value" id="t-auc">-</div></div></div>
+                <div class="stat-card"><div class="stat-icon" style="background:#fde8f0;color:#e86ca4">🛡️</div><div><div class="stat-title">攻击召回率</div><div class="stat-value" id="t-recall">-</div></div></div>
+            </div>
+            <div class="row row-11">
+                <div class="card"><h3>训练集分布</h3><div id="tdist" class="chart"></div></div>
+                <div class="card"><h3>混淆矩阵</h3><div id="cm" class="chart"></div></div>
+            </div>
+            <div class="row row-11">
+                <div class="card" style="grid-column:1/-1"><h3>各类别指标</h3><div id="pclass" class="chart" style="height:200px"></div></div>
+            </div>
+        </div>
+
+        <!-- 页面3：决策分析 -->
+        <div class="page" id="page-explain">
+            <h2 class="page-title">SHAP 可解释分析
+                <span style="float:right;font-size:.8rem;font-weight:400">
+                检测模型：
+                <button id="m-btn-base2" class="model-pill active" onclick="switchModel('base')">基线模型</button>
+                <button id="m-btn-robust2" class="model-pill" onclick="switchModel('robust')">加固模型</button>
+                </span>
+            </h2>
+            <div class="form-row">
+                <div class="form-group"><label>样本编号</label><input type="number" id="exp-idx" value="5" min="0" max="100"></div>
+                <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn" onclick="loadExplain()">分析</button></div>
+            </div>
+            <div id="exp-result" style="margin-bottom:16px;color:#4a5270;font-size:.9rem"></div>
+            <div class="row row-11">
+                <div class="card"><h3>全局特征重要性 Top15</h3><div id="globimp" class="chart" style="height:260px"></div></div>
+                <div class="card"><h3>可操控特征 SHAP 分布（中间轴=0）</h3><div id="mut" class="chart"></div></div>
+            </div>
+            <div class="card ai-card">
+                <div class="ai-head">
+                    <div class="ai-title">
+                        <span class="ai-spark">✦</span>
+                        <div>
+                            <div class="ai-title-main">AI 实验总结</div>
+                            <div class="ai-title-sub">自动汇总模型、攻击与防御的全部实验结论</div>
+                        </div>
+                    </div>
+                    <button class="btn" onclick="genFullReport()">生成总结</button>
+                </div>
+                <div id="ai-full-report" class="ai-report"></div>
+            </div>
+        </div>
+
+        <!-- 页面4：对抗攻击 -->
+        <div class="page" id="page-attack">
+            <h2 class="page-title">对抗攻击实验</h2>
+            <div class="card">
+                <div class="tab-bar">
+                    <button class="tab-btn active" data-attack="random" onclick="switchAttackTab('random')">随机扰动攻击</button>
+                    <button class="tab-btn" data-attack="shap" onclick="switchAttackTab('shap')">SHAP 引导攻击</button>
+                    <button class="tab-btn" data-attack="whitebox" onclick="switchAttackTab('whitebox')">白盒阈值穿越攻击</button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>样本编号</label><input type="number" id="atk-idx" value="0" min="0"></div>
+                    <div class="form-group"><label>单步扰动比例</label><input type="number" id="atk-step" value="0.3" step="0.05" min="0.05" max="0.5"></div>
+                    <div class="form-group"><label>最大迭代步数</label><input type="number" id="atk-max" value="15" min="1" max="20"></div>
+                    <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn" onclick="runAttack()">发起攻击</button></div>
+                </div>
+                <div id="atk-result"></div>
+                <div id="atk-diff" class="chart" style="height:190px;margin-top:8px"></div>
+            </div>
+            <div class="row row-11">
+                <div class="card"><h3 style="border-left-color:#f46a6a">各类攻击逃逸成功率</h3><div id="atk-analy-bar" class="chart"></div></div>
+                <div class="card"><h3 style="border-left-color:#f46a6a">逃逸成功率随迭代步数收敛</h3><div id="atk-analy-line" class="chart"></div></div>
+            </div>
+        </div>
+
+        <!-- 页面5：鲁棒防御 -->
+        <div class="page" id="page-defense">
+            <h2 class="page-title">鲁棒防御体系</h2>
+            <div class="card">
+                <div class="tab-bar">
+                    <button class="tab-btn active" data-defense="retrain" onclick="switchDefenseTab('retrain')">对抗重训</button>
+                    <button class="tab-btn" data-defense="noise" onclick="switchDefenseTab('noise')">输入噪声扰动</button>
+                    <button class="tab-btn" data-defense="iforest" onclick="switchDefenseTab('iforest')">异常检测前置</button>
+                </div>
+                <div id="def-content">
+                    <div class="form-row">
+                        <div class="form-group"><label>对抗加固样本量</label><input type="number" id="def-n" value="100" min="50" max="200"></div>
+                        <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn" onclick="runRetrain()">开始重训并评测</button></div>
+                    </div>
+                </div>
+                <div id="def-result"></div>
+                <div id="def-chart" class="chart" style="height:200px;margin-top:8px"></div>
+            </div>
+            <div class="row row-11">
+                <div class="card"><h3>拦截率随对抗加固规模变化</h3><div id="def-analy-line" class="chart"></div></div>
+                <div class="card"><h3>基线模型 vs 加固模型防护对比</h3><div id="def-analy-bar" class="chart"></div></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+// ===== 侧栏切换 =====
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.onclick = () => {
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        item.classList.add('active');
+        document.getElementById('page-' + item.dataset.page).classList.add('active');
+        loadPage(item.dataset.page);
+    };
+});
+
+// ===== 工具 =====
+const charts = {};
+const AXIS_COLOR = "#4a5270";
+function mkChart(id) {
+    if (charts[id]) charts[id].dispose();
+    charts[id] = echarts.init(document.getElementById(id));
+    charts[id].setOption({
+        textStyle: { color: AXIS_COLOR },
+        xAxis: { axisLabel: { color: AXIS_COLOR }, axisLine: { lineStyle: { color: "#d8deeb" } } },
+        yAxis: { axisLabel: { color: AXIS_COLOR }, axisLine: { lineStyle: { color: "#d8deeb" } }, splitLine: { lineStyle: { color: "#eef1f8" } }, nameTextStyle: { color: AXIS_COLOR } },
+        legend: { textStyle: { color: AXIS_COLOR } },
+    });
+    return charts[id];
+}
+
+async function api(path, opts) {
+    const res = await fetch(path, opts);
+    return res.json();
+}
+
+// ===== 页面加载 =====
+function loadPage(page) {
+    if (page === 'overview') loadOverview();
+    if (page === 'training') loadTraining();
+    if (page === 'explain') loadExplain();
+    if (page === 'attack') loadAttackAnalytics();
+    if (page === 'defense') loadDefenseAnalytics();
+}
+
+async function loadOverview() {
+    try {
+        const d = await api('/api/overview');
+        document.getElementById('s-packets').textContent = d.stats.packets.toLocaleString();
+    document.getElementById('s-sessions').textContent = d.stats.sessions;
+    document.getElementById('s-blocked').textContent = d.stats.blocked.toLocaleString();
+    document.getElementById('s-conf').textContent = d.stats.confidence + '%';
+
+    mkChart('pie').setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+        legend: { orient: 'vertical', right: 10, top: 'middle', textStyle: { fontSize: 11 }, itemWidth: 12, itemHeight: 12 },
+        series: [{
+            type: 'pie', radius: ['40%', '65%'], center: ['38%', '50%'],
+            data: d.dist.labels.map((l,i)=>({name:l,value:d.dist.values[i],itemStyle:{color:d.dist.colors[i]}})),
+            label: { show: true, formatter: '{d}%', fontSize: 10 },
+            labelLine: { length: 8, length2: 8 }
+        }]
+    });
+
+    mkChart('flow').setOption({
+        tooltip: { trigger: 'axis' }, legend: { data: ['正常流量','疑似攻击'], top: 0 },
+        grid: { left: 60, right: 20, top: 30, bottom: 40 },
+        xAxis: { type: 'category', data: [] },
+        yAxis: { type: 'value', name: '包/秒', nameLocation: 'middle', nameGap: 38 },
+        series: [
+            { name: '正常流量', type: 'line', smooth: true, data: [], areaStyle: {opacity:.12}, color: '#4e7cf6' },
+            { name: '疑似攻击', type: 'line', smooth: true, data: [], areaStyle: {opacity:.15}, color: '#f46a6a' }
+        ]
+    });
+    startStream();
+
+    mkChart('atkbar').setOption({
+        tooltip: {}, grid: { left: 60, right: 20, top: 30, bottom: 40 },
+        xAxis: { type: 'category', data: d.attack_bar.labels },
+        yAxis: { type: 'value', name: '条数', nameLocation: 'middle', nameGap: 38 },
+        series: [{ type: 'bar', data: d.attack_bar.values.map((v,i)=>({value:v,itemStyle:{color:d.attack_bar.colors[i]}})), barWidth: '40%' }]
+    });
+
+    const ev = document.getElementById('events');
+    ev.innerHTML = d.events.map(e => {
+        const c = e.severity === '严重' ? '#e86ca4' : e.severity === '高危' ? '#f46a6a' : '#f1b44c';
+        return `<div class="event" style="border-left-color:${c}">
+            <span class="badge" style="background:${c}22;color:${c}">${e.severity}</span>
+            <div class="event-info">[${e.time}] <b style="color:${c}">${e.class.toUpperCase()}</b> 攻击 · 连接 #${e.conn}</div>
+            <div class="event-conf">${e.conf.toFixed(0)}%</div></div>`;
+    }).join('');
+    } catch (e) {
+        document.body.insertAdjacentHTML('afterbegin',
+            '<div style="background:#f46a6a;color:#fff;padding:12px 20px;border-radius:8px;margin:10px 0;font-size:.9rem">⚠️ 数据加载失败：' + e.message + '<br>请确认黑色命令行窗口里没有报错，等模型加载完（约10-20秒）后刷新页面。</div>');
+        console.error(e);
+    }
+}
+
+// ===== 实时数据流 =====
+let es = null;
+function startStream() {
+    if (es) es.close();
+    es = new EventSource('/api/stream');
+    es.onmessage = (e) => {
+        const d = JSON.parse(e.data);
+        const chart = charts['flow'];
+        if (chart) {
+            const opt = chart.getOption();
+            opt.xAxis[0].data.push(d.time);
+            opt.series[0].data.push(d.normal);
+            opt.series[1].data.push(d.attack);
+            while (opt.xAxis[0].data.length > 60) {
+                opt.xAxis[0].data.shift();
+                opt.series[0].data.shift();
+                opt.series[1].data.shift();
+            }
+            chart.setOption(opt);
+        }
+        // 检测到攻击，实时往事件流顶部加一条（严重等级由后端按数据集给出）
+        if (d.is_attack) {
+            const sev = d.sev || '中危';
+            const c = sev === '严重' ? '#e86ca4' : sev === '高危' ? '#f46a6a' : '#f1b44c';
+            const box = document.getElementById('events');
+            if (box) {
+                const div = document.createElement('div');
+                div.className = 'event';
+                div.style.borderLeftColor = c;
+                div.innerHTML = `<span class="badge" style="background:${c}22;color:${c}">${sev}</span>
+                    <div class="event-info">[${d.time}] <b style="color:${c}">${d.cls.toUpperCase()}</b> 攻击 · 实时</div>
+                    <div class="event-conf">${d.conf.toFixed(0)}%</div>`;
+                box.insertBefore(div, box.firstChild);
+                while (box.children.length > 6) box.removeChild(box.lastChild);
+            }
+        }
+    };
+}
+
+async function loadTraining() {
+    const d = await api('/api/training');
+    // 主指标：专用二分类模型的恶意检测性能
+    document.getElementById('t-acc').textContent = d.binary.acc.toFixed(1) + '%';
+    document.getElementById('t-f1').textContent = d.binary.f1.toFixed(1) + '%';
+    document.getElementById('t-auc').textContent = d.binary.auc.toFixed(1) + '%';
+    document.getElementById('t-recall').textContent = d.binary.mal_recall.toFixed(1) + '%';
+
+    mkChart('tdist').setOption({
+        tooltip: {}, grid: { left: 60, right: 20, top: 30, bottom: 40 },
+        xAxis: { type: 'category', data: d.train_dist.labels },
+        yAxis: { type: 'value', name: '样本数', nameLocation: 'middle', nameGap: 38 },
+        series: [{ type: 'bar', data: d.train_dist.values.map((v,i)=>({value:v,itemStyle:{color:d.train_dist.colors[i]}})), barWidth: '45%' }]
+    });
+
+    mkChart('cm').setOption({
+        tooltip: {}, grid: { left: 110, right: 30, top: 20, bottom: 80 },
+        xAxis: {
+            type: 'category', data: d.confusion.labels, name: '预测', nameLocation: 'middle', nameGap: 50,
+            axisLabel: { rotate: 35, fontSize: 10, interval: 0 }
+        },
+        yAxis: {
+            type: 'category', data: d.confusion.labels, name: '真实', nameLocation: 'middle', nameGap: 90,
+            axisLabel: { fontSize: 10 }
+        },
+        series: [{
+            type: 'heatmap',
+            data: d.confusion.matrix.flatMap((row,i)=>row.map((v,j)=>[j,i,v])),
+            label: { show: true, fontSize: 10 },
+            itemStyle: { borderColor: '#fff', borderWidth: 2 }
+        }]
+    });
+
+    mkChart('pclass').setOption({
+        tooltip: { trigger: 'axis' }, legend: { top: 0 },
+        grid: { left: 50, right: 20, top: 40, bottom: 50 },
+        xAxis: { type: 'category', data: d.per_class.labels },
+        yAxis: { type: 'value', max: 1 },
+        series: [
+            { name: '精确率', type: 'bar', data: d.per_class.precision, itemStyle:{color:'#4e7cf6'} },
+            { name: '召回率', type: 'bar', data: d.per_class.recall, itemStyle:{color:'#34c38f'} },
+            { name: 'F1', type: 'bar', data: d.per_class.f1, itemStyle:{color:'#f1b44c'} }
+        ]
+    });
+}
+
+async function loadExplain() {
+    const idx = document.getElementById('exp-idx').value || 5;
+    const d = await api('/api/explain?idx=' + idx);
+    // 当前样本可操控特征 SHAP（后端 d.mutable 已返回，之前没用上）
+    const curMut = d.mutable || { features: [], values: [] };
+    const curShapText = curMut.features && curMut.features.length
+        ? '<div style="margin-top:6px;color:#64748b;font-size:.85rem">当前样本可操控特征 SHAP：'
+          + curMut.features.map((f, i) => {
+              const v = Number(curMut.values[i]);
+              const c = v >= 0 ? '#ef4444' : '#2563eb';
+              return `${f}=<b style="color:${c}">${v >= 0 ? '+' : ''}${v.toFixed(3)}</b>`;
+          }).join('，')
+          + '</div>' : '';
+    document.getElementById('exp-result').innerHTML = `样本 <b>#${idx}</b> 预测类别：<b style="color:#4e7cf6">${d.pred_class}</b>` + curShapText;
+
+    mkChart('globimp').setOption({
+        tooltip: {}, grid: { left: 100, right: 20, top: 10, bottom: 30 },
+        xAxis: { type: 'value' }, yAxis: { type: 'category', data: d.global_importance.features },
+        series: [{ type: 'bar', data: d.global_importance.values, itemStyle:{color:'#4e7cf6'} }]
+    });
+
+    // 可操控特征 SHAP：中间轴 beeswarm 分布（0 为分界，红=特征值高，蓝=特征值低）
+    const md = d.mutable_dist || { features: [], shap_values: [], feature_values: [] };
+    const lerp = (a, b, k) => a + (b - a) * k;
+    function shapColor(v, lo, hi) {
+        if (hi <= lo) return '#8a93ab';
+        const t = Math.min(1, Math.max(0, (v - lo) / (hi - lo)));
+        const c = [[74,124,246],[203,213,225],[244,106,106]];
+        let rgb;
+        if (t < 0.5) { const k = t / 0.5; rgb = [lerp(c[0][0],c[1][0],k), lerp(c[0][1],c[1][1],k), lerp(c[0][2],c[1][2],k)]; }
+        else { const k = (t - 0.5) / 0.5; rgb = [lerp(c[1][0],c[2][0],k), lerp(c[1][1],c[2][1],k), lerp(c[1][2],c[2][2],k)]; }
+        return 'rgb(' + rgb.map(Math.round).join(',') + ')';
+    }
+    const mfeats = md.features;
+    const mutSeries = mfeats.map((f, fi) => {
+        const fv = md.feature_values[fi];
+        const lo = Math.min(...fv), hi = Math.max(...fv);
+        return {
+            name: f, type: 'scatter',
+            data: md.shap_values[fi].map((sh, si) => ({
+                value: [sh, fi],
+                itemStyle: { color: shapColor(fv[si], lo, hi), opacity: 0.8 }
+            })),
+            symbolSize: 8,
+            markLine: { silent: true, symbol: 'none', lineStyle: { color: '#94a3b8', type: 'dashed' }, data: [{ xAxis: 0 }] }
+        };
+    });
+    // 当前样本高亮：把 d.mutable 里这一个样本的三个可操控特征 SHAP 点画在 beeswarm 上
+    const curPoints = (curMut.features || []).map((f, i) => ({
+        value: [curMut.values[i], i],
+        itemStyle: { color: '#fbbf24', borderColor: '#fff', borderWidth: 2, shadowBlur: 8, shadowColor: 'rgba(0,0,0,.35)' }
+    }));
+    mutSeries.push({
+        name: '当前样本', type: 'scatter', data: curPoints,
+        symbol: 'star', symbolSize: 22, z: 10
+    });
+    mkChart('mut').setOption({
+        tooltip: { trigger: 'item', formatter: p => p.seriesName === '当前样本'
+            ? `★ 当前样本 #${idx} · ${mfeats[p.value[1]]} · SHAP ${Number(p.value[0]).toFixed(3)}`
+            : `${mfeats[p.value[1]]} · SHAP ${Number(p.value[0]).toFixed(3)}` },
+        legend: { show: false },
+        grid: { left: 60, right: 30, top: 20, bottom: 40 },
+        xAxis: { type: 'value', name: 'SHAP 值（normal 类）', nameLocation: 'middle', nameGap: 28 },
+        yAxis: { type: 'category', data: mfeats },
+        series: mutSeries
+    });
+}
+
+let currentAttackTab = 'random';
+let currentDefenseTab = 'retrain';
+
+function switchAttackTab(tab) {
+    currentAttackTab = tab;
+    document.querySelectorAll('.tab-btn[data-attack]').forEach(b => {
+        b.classList.toggle('active', b.dataset.attack === tab);
+    });
+    const titles = {
+        random: '随机扰动攻击（黑盒基线）',
+        shap: 'SHAP 引导攻击（定向高效）',
+        whitebox: '白盒阈值穿越攻击（利用分裂点）'
+    };
+    document.querySelector('#page-attack .card h3')?.remove();
+    const card = document.querySelector('#page-attack .card');
+    const h3 = document.createElement('h3');
+    h3.textContent = titles[tab];
+    card.insertBefore(h3, card.querySelector('.tab-bar').nextSibling);
+    // 关键修复：切换攻击标签时清空上一次攻击的结果和图表
+    document.getElementById('atk-result').innerHTML = '';
+    mkChart('atk-diff').clear();
+}
+
+function switchDefenseTab(tab) {
+    currentDefenseTab = tab;
+    document.querySelectorAll('.tab-btn[data-defense]').forEach(b => {
+        b.classList.toggle('active', b.dataset.defense === tab);
+    });
+    const content = document.getElementById('def-content');
+    if (tab === 'retrain') {
+        content.innerHTML = `<div class="form-row">
+            <div class="form-group"><label>对抗加固样本量</label><input type="number" id="def-n" value="100" min="50" max="200"></div>
+            <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn" onclick="runRetrain()">开始重训并评测</button></div>
+        </div>`;
+    } else if (tab === 'noise') {
+        content.innerHTML = `<div class="form-row">
+            <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn" onclick="runNoiseDefense()">运行噪声防御评测</button></div>
+        </div>`;
+    } else if (tab === 'iforest') {
+        content.innerHTML = `<div class="form-row">
+            <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn" onclick="runIforestDefense()">运行异常检测前置评测</button></div>
+        </div>`;
+    }
+    document.getElementById('def-result').innerHTML = '';
+    // def-chart 不清空 innerHTML，否则会损坏已绑定的 ECharts 实例
+}
+
+async function runAttack() {
+    const body = {
+        idx: +document.getElementById('atk-idx').value,
+        step_ratio: +document.getElementById('atk-step').value,
+        max_steps: +document.getElementById('atk-max').value
+    };
+    const endpoints = {
+        random: '/api/attack/random',
+        shap: '/api/attack/blackbox',
+        whitebox: '/api/attack/whitebox'
+    };
+    const d = await api(endpoints[currentAttackTab], { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const box = document.getElementById('atk-result');
+    box.innerHTML = `<div class="result ${d.success?'':'fail'}">
+        ${d.success ? '✅ 攻击成功' : '⚠️ 逃逸失败'}：${d.orig_class} → ${d.adv_class}，用了 ${d.steps} 步。
+        攻击前 normal 置信度 ${d.orig_conf.toFixed(2)}%，攻击后 ${d.adv_conf.toFixed(2)}%。</div>`;
+    mkChart('atk-diff').setOption({
+        tooltip: { trigger: 'axis' }, legend: { top: 0 },
+        grid: { left: 50, right: 20, top: 30, bottom: 30 },
+        xAxis: { type: 'category', data: d.diff.features }, yAxis: { type: 'value' },
+        series: [
+            { name: '扰动前', type: 'bar', data: d.diff.before, itemStyle:{color:'#8a93ab'} },
+            { name: '扰动后', type: 'bar', data: d.diff.after, itemStyle:{color:'#4e7cf6'} }
+        ]
+    });
+}
+
+async function runRetrain() {
+    const n = +document.getElementById('def-n').value;
+    const d = await api('/api/defense/retrain', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({n_adv:n}) });
+    document.getElementById('def-result').innerHTML = `<div class="result">
+        加固前拦截率 <b>${d.base_rate.toFixed(1)}%</b> → 加固后 <b>${d.robust_rate.toFixed(1)}%</b>，
+        提升 <b style="color:#34c38f">+${d.improve.toFixed(1)}%</b></div>`;
+    mkChart('def-chart').setOption({
+        tooltip: {}, legend: { top: 0, right: 10 },
+        grid: { left: 50, right: 20, top: 40, bottom: 40 },
+        xAxis: { type: 'category', data: ['对抗样本拦截率'] }, yAxis: { type: 'value', max: 100, name: '%', nameLocation: 'middle', nameGap: 30 },
+        series: [
+            { name: '加固前', type: 'bar', data: [d.base_rate], itemStyle:{color:'#f46a6a'}, barWidth: '20%', label:{show:true,position:'top',formatter:'{c}%'} },
+            { name: '加固后', type: 'bar', data: [d.robust_rate], itemStyle:{color:'#34c38f'}, barWidth: '20%', label:{show:true,position:'top',formatter:'{c}%'} }
+        ]
+    });
+}
+
+async function runNoiseDefense() {
+    const d = await api('/api/defense/noise', { method:'POST', headers:{'Content-Type':'application/json'} });
+    document.getElementById('def-result').innerHTML = `<div class="result">
+        噪声防御前拦截率 <b>${d.base_rate.toFixed(1)}%</b> → 防御后 <b>${d.defended_rate.toFixed(1)}%</b>，
+        提升 <b style="color:#34c38f">+${d.improve.toFixed(1)}%</b></div>`;
+    mkChart('def-chart').setOption({
+        tooltip: {}, legend: { top: 0, right: 10 },
+        grid: { left: 50, right: 20, top: 40, bottom: 40 },
+        xAxis: { type: 'category', data: ['噪声防御拦截率'] }, yAxis: { type: 'value', max: 100, name: '%', nameLocation: 'middle', nameGap: 30 },
+        series: [
+            { name: '防御前', type: 'bar', data: [d.base_rate], itemStyle:{color:'#f46a6a'}, barWidth: '25%', label:{show:true,position:'top',formatter:'{c}%'} },
+            { name: '防御后', type: 'bar', data: [d.defended_rate], itemStyle:{color:'#34c38f'}, barWidth: '25%', label:{show:true,position:'top',formatter:'{c}%'} }
+        ]
+    });
+}
+
+async function runIforestDefense() {
+    const d = await api('/api/defense/iforest', { method:'POST', headers:{'Content-Type':'application/json'} });
+    document.getElementById('def-result').innerHTML = `<div class="result">
+        前置检测前拦截率 <b>${d.base_rate.toFixed(1)}%</b> → 前置检测后 <b>${d.defended_rate.toFixed(1)}%</b>，
+        其中异常检测器直接拦截 <b>${d.blocked_rate.toFixed(1)}%</b>，
+        提升 <b style="color:#34c38f">+${d.improve.toFixed(1)}%</b></div>`;
+    mkChart('def-chart').setOption({
+        tooltip: {}, legend: { top: 0, right: 10 },
+        grid: { left: 50, right: 20, top: 40, bottom: 40 },
+        xAxis: { type: 'category', data: ['前置检测拦截率'] }, yAxis: { type: 'value', max: 100, name: '%', nameLocation: 'middle', nameGap: 30 },
+        series: [
+            { name: '无前置检测', type: 'bar', data: [d.base_rate], itemStyle:{color:'#f46a6a'}, barWidth: '25%', label:{show:true,position:'top',formatter:'{c}%'} },
+            { name: '有前置检测', type: 'bar', data: [d.defended_rate], itemStyle:{color:'#34c38f'}, barWidth: '25%', label:{show:true,position:'top',formatter:'{c}%'} }
+        ]
+    });
+}
+
+// ===== 攻击页：AI 大数据分析 =====
+let analysisToastTimer = null;
+function toastAnalysis(msg, persist) {
+    let el = document.getElementById('analy-toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'analy-toast';
+        el.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#2b3350;color:#fff;padding:10px 18px;border-radius:10px;font-size:.82rem;z-index:999;box-shadow:0 6px 20px rgba(0,0,0,.2)';
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(analysisToastTimer);
+    analysisToastTimer = setTimeout(() => { el.style.display = 'none'; }, 40000);
+}
+
+async function loadAttackAnalytics() {
+    try {
+        toastAnalysis('⏳ 大数据攻击分析计算中（首次约需 20-30 秒，之后秒开）…');
+        const d = await api('/api/attack/analytics');
+        document.getElementById('analy-toast').style.display = 'none';
+        mkChart('atk-analy-bar').setOption({
+            tooltip: { trigger: 'axis', formatter: '{b}<br/>逃逸率: {c}%' },
+            grid: { left: 50, right: 20, top: 20, bottom: 40 },
+            xAxis: { type: 'category', data: d.per_class.labels },
+            yAxis: { type: 'value', max: 100, name: '逃逸率%', nameLocation: 'middle', nameGap: 38 },
+            series: [{ type: 'bar', barWidth: '45%',
+                data: d.per_class.values.map((v,i)=>({value:v,itemStyle:{color:d.per_class.colors[i]}})),
+                label: { show:true, position:'top', formatter:'{c}%' } }]
+        });
+        mkChart('atk-analy-line').setOption({
+            tooltip: { trigger: 'axis' },
+            grid: { left: 50, right: 20, top: 20, bottom: 40 },
+            xAxis: { type: 'category', data: d.step_curve.steps, name: '迭代步数', nameLocation: 'middle', nameGap: 28 },
+            yAxis: { type: 'value', max: 100, name: '累计逃逸率%', nameLocation: 'middle', nameGap: 38 },
+            series: [{ type: 'line', smooth: true, data: d.step_curve.rates,
+                areaStyle: {opacity:.15}, color: '#f46a6a', symbol: 'circle', symbolSize: 6 }]
+        });
+    } catch (e) { console.error('attack analytics', e); }
+}
+
+// ===== 防御页：AI 大数据分析 =====
+async function loadDefenseAnalytics() {
+    try {
+        toastAnalysis('⏳ 大数据防御分析计算中（首次约需 20-30 秒，之后秒开）…');
+        const d = await api('/api/defense/analytics');
+        document.getElementById('analy-toast').style.display = 'none';
+        mkChart('def-analy-line').setOption({
+            tooltip: { trigger: 'axis' }, legend: { top: 0, left: 'center', itemWidth: 14, itemHeight: 8 },
+            grid: { left: 48, right: 20, top: 48, bottom: 38 },
+            xAxis: { type: 'category', data: d.ns, name: '对抗加固样本量', nameLocation: 'middle', nameGap: 26 },
+            yAxis: { type: 'value', max: 100, name: '拦截率%', nameLocation: 'middle', nameGap: 36 },
+            series: [
+                { name: '加固模型拦截率', type: 'line', smooth: true, data: d.robust_rates,
+                  color: '#34c38f', symbol: 'circle', symbolSize: 7,
+                  label:{show:true, position:'bottom', formatter:'{c}%', fontSize:11, color:'#34c38f'} },
+                { name: '基线模型拦截率', type: 'line', data: d.ns.map(()=>d.base_rate),
+                  color: '#f46a6a', lineStyle:{type:'dashed'}, symbol: 'none' }
+            ]
+        });
+        mkChart('def-analy-bar').setOption({
+            tooltip: {}, grid: { left: 60, right: 20, top: 30, bottom: 30 },
+            xAxis: { type: 'category', data: ['基线模型','加固模型'] },
+            yAxis: { type: 'value', max: 100, name: '拦截率%', nameLocation: 'middle', nameGap: 38 },
+            series: [{ type: 'bar', barWidth: '35%',
+                data: [
+                    { value: d.base_rate, itemStyle:{color:'#f46a6a'} },
+                    { value: d.robust_rates[d.robust_rates.length-1], itemStyle:{color:'#34c38f'} }
+                ],
+                label: { show:true, position:'top', formatter:'{c}%' } }]
+        });
+    } catch (e) { console.error('defense analytics', e); }
+}
+
+// ===== AI 智能综合分析报告（决策分析页）=====
+async function genFullReport() {
+    const box = document.getElementById('ai-full-report');
+    box.innerHTML = '<div class="result">⏳ AI 正在汇总模型、攻击、防御全部实验数据，生成综合结论，约需 8~12 秒…</div>';
+    try {
+        const d = await api('/api/ai/full_report');
+        box.innerHTML = d.ok
+            ? `<div class="result">${d.report.replace(/\n/g, '<br>')}</div>`
+            : `<div class="result fail">${d.report}</div>`;
+    } catch (e) {
+        box.innerHTML = `<div class="result fail">请求失败：${e.message}</div>`;
+    }
+}
+
+// ===== 模型切换 =====
+async function switchModel(name) {
+    await api('/api/model/switch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name}) });
+    // 同步所有 pill 高亮：含"基线"的按钮在 base 时亮，含"加固"的在 robust 时亮
+    document.querySelectorAll('.model-pill').forEach(b => {
+        const isBaseBtn = b.textContent.includes('基线');
+        const on = (name === 'base' && isBaseBtn) || (name === 'robust' && !isBaseBtn);
+        b.classList.toggle('active', on);
+    });
+    // 重新加载当前可见页
+    if (document.getElementById('page-overview').classList.contains('active')) loadOverview();
+    if (document.getElementById('page-explain').classList.contains('active')) loadExplain();
+}
+
+async function showAiNote() {
+    const box = document.getElementById('ai-note');
+    if (!box) return;
+    box.style.display = 'block';
+    box.innerHTML = '⏳ AI 正在点评本次模型切换…';
+    try {
+        const d = await api('/api/model/ai_note');
+        box.innerHTML = d.ok
+            ? `<span class="ai-badge">AI 点评</span>${d.note.replace(/\n/g,'<br>')}`
+            : `<span class="ai-badge">AI 点评</span>${d.note}`;
+    } catch(e) { box.innerHTML = 'AI 点评加载失败'; }
+}
+
+// ===== 数据集切换 =====
+async function switchDataset(key) {
+    const d = await api('/api/dataset/switch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({key}) });
+    if (!d.ok) { alert(d.msg); return; }
+    document.getElementById('ds-select').value = d.active;
+    document.getElementById('ds-current').textContent = '当前：' + d.name;
+    // 重新加载当前可见页面（各接口按当前数据集返回）
+    if (document.getElementById('page-overview').classList.contains('active')) loadOverview();
+    if (document.getElementById('page-training').classList.contains('active')) loadTraining();
+    if (document.getElementById('page-explain').classList.contains('active')) loadExplain();
+    if (document.getElementById('page-attack').classList.contains('active')) loadAttackAnalytics();
+    if (document.getElementById('page-defense').classList.contains('active')) loadDefenseAnalytics();
+}
+
+// 首屏加载：先同步后端当前数据集状态，再加载页面
+async function initDatasetState() {
+    try {
+        const d = await api('/api/datasets');
+        document.getElementById('ds-select').value = d.active;
+        const item = d.items.find(i => i.key === d.active);
+        document.getElementById('ds-current').textContent = '当前：' + (item ? item.name : d.active);
+    } catch (e) { /* 静默失败，保持 HTML 默认值 */ }
+}
+initDatasetState();
+loadOverview();
+window.addEventListener('resize', () => Object.values(charts).forEach(c => c.resize()));
+</script>
+</body>
+</html>

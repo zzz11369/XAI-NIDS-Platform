@@ -1,0 +1,22 @@
+﻿# 敏感信息
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyc
+
+# 模型产物
+models/
+
+# 数据集
+data/
+
+# 日志
+*.log
+server_boot.log
+
+# OS
+Thumbs.db
+.DS_Store
